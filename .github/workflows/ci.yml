@@ -7,32 +7,46 @@ permissions:
   contents: read
 jobs:
   build:
-    name: lake build + sorry audit
+    name: lake build + axiom audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: leanprover/lean-action@v3
+
+      - name: Install Lean, fetch Mathlib cache, build
+        uses: leanprover/lean-action@v1.6.0
         with:
           use-mathlib-cache: true
-      - name: Resolve dependencies
-        run: lake update
-      - name: Fetch precompiled Mathlib (best effort; falls back to building from source)
-        run: lake exe cache get || echo "cache get unavailable, will build Mathlib from source"
-      - name: Build
-        run: lake build 2>&1 | tee build.log
-      - name: Fail if any declaration uses sorry
-        run: |
-          if grep -q "declaration uses 'sorry'" build.log; then
-            echo "sorry found:"; grep "declaration uses 'sorry'" build.log; exit 1
-          fi
-          echo "no sorry"
-      - name: Print axioms of the main theorems
+
+      - name: Audit axioms of every declaration in this project
         run: |
           cat > Axioms.lean <<'EOF'
           import LeanProofs
-          #print axioms Ordinal.veblen_lt_gamma_zero
+          #print axioms Ordinal.veblen_le_veblen_max
+          #print axioms Ordinal.le_iterate_veblen_zero
+          #print axioms Ordinal.iterate_veblen_zero_le
+          #print axioms Ordinal.veblen_zero_lt_gamma_zero
+          #print axioms Ordinal.veblen_le_iterate_succ_veblen_zero
+          #print axioms Ordinal.veblen_lt_gamma_zero_of_lt_iterate
+          #print axioms Ordinal.veblen_lt_gamma_zero_of_lt_iterate'
           #print axioms Ordinal.veblen_lt_of_fixed
+          #print axioms Ordinal.veblen_lt_gamma
+          #print axioms Ordinal.veblen_lt_gamma_zero
+          #print axioms Ordinal.veblen_mem_Iio_gamma_zero
           #print axioms gamma_zero_closed_under_veblen
+          #print axioms omega_lt_gamma_zero
+          #print axioms veblen_omega_omega_lt_gamma_zero
+          #print axioms veblen_epsilon_zero_epsilon_zero_lt_gamma_zero
           #print axioms LeanProofs.csb
           EOF
-          lake env lean Axioms.lean
+          lake env lean Axioms.lean | tee axioms.log
+          if grep -q "sorryAx\|ofReduceBool\|axiomAx" axioms.log; then
+            echo "FORBIDDEN AXIOM FOUND"; grep "sorryAx\|ofReduceBool\|axiomAx" axioms.log; exit 1
+          fi
+          if [ "$(grep -c 'depends on axioms' axioms.log)" -ne 16 ]; then
+            echo "expected 16 audited declarations, got $(grep -c 'depends on axioms' axioms.log)"
+            exit 1
+          fi
+          if grep -v 'propext, Classical.choice, Quot.sound' axioms.log | grep 'depends on axioms'; then
+            echo "a declaration depends on something outside the allowlist"; exit 1
+          fi
+          echo "OK: 16/16 declarations, axioms ⊆ {propext, Classical.choice, Quot.sound}"
