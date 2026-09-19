@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: lake build + sorry audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v3
+        with:
+          use-mathlib-cache: true
+      - name: Resolve dependencies
+        run: lake update
+      - name: Fetch precompiled Mathlib (best effort; falls back to building from source)
+        run: lake exe cache get || echo "cache get unavailable, will build Mathlib from source"
+      - name: Build
+        run: lake build 2>&1 | tee build.log
+      - name: Fail if any declaration uses sorry
+        run: |
+          if grep -q "declaration uses 'sorry'" build.log; then
+            echo "sorry found:"; grep "declaration uses 'sorry'" build.log; exit 1
+          fi
+          echo "no sorry"
+      - name: Print axioms of the main theorems
+        run: |
+          cat > Axioms.lean <<'EOF'
+          import LeanProofs
+          #print axioms Ordinal.veblen_lt_gamma_zero
+          #print axioms Ordinal.veblen_lt_of_fixed
+          #print axioms gamma_zero_closed_under_veblen
+          #print axioms LeanProofs.csb
+          EOF
+          lake env lean Axioms.lean
