@@ -12,10 +12,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Lean, fetch Mathlib cache, build
-        uses: leanprover/lean-action@v1.6.0
-        with:
-          use-mathlib-cache: true
+      # Deliberately not using lean-action: it refuses to run without a
+      # committed lake-manifest.json, and pinning a manifest here would drift
+      # from the pinned Mathlib rev. Plain elan + lake keeps it inspectable.
+      - name: Install elan (honours ./lean-toolchain)
+        run: |
+          curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Report toolchain
+        run: |
+          lean --version
+          lake --version
+
+      - name: Resolve dependencies (Mathlib rev pinned in lakefile.toml)
+        run: lake update
+
+      - name: Download prebuilt Mathlib
+        run: lake exe cache get
+
+      - name: Build
+        run: lake build
 
       - name: Audit axioms of every declaration in this project
         run: |
@@ -49,4 +66,4 @@ jobs:
           if grep -v 'propext, Classical.choice, Quot.sound' axioms.log | grep 'depends on axioms'; then
             echo "a declaration depends on something outside the allowlist"; exit 1
           fi
-          echo "OK: 16/16 declarations, axioms ⊆ {propext, Classical.choice, Quot.sound}"
+          echo "OK: 16/16 declarations, axioms within {propext, Classical.choice, Quot.sound}"
