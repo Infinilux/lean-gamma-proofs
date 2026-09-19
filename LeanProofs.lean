@@ -1,2 +1,3 @@
 import LeanProofs.GammaVeblen
 import LeanProofs.SchroederBernstein
+import LeanProofs.Olympiad

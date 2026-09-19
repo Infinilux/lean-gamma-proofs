@@ -54,16 +54,22 @@ jobs:
           #print axioms veblen_omega_omega_lt_gamma_zero
           #print axioms veblen_epsilon_zero_epsilon_zero_lt_gamma_zero
           #print axioms LeanProofs.csb
+          #print axioms LeanProofs.Olympiad.hm_am3
+          #print axioms LeanProofs.Olympiad.nesbitt
+          #print axioms LeanProofs.Olympiad.cauchy_schwarz_two
+          #print axioms LeanProofs.Olympiad.pow_five_mod_thirty
+          #print axioms LeanProofs.Olympiad.sum_cubes
+          #print axioms LeanProofs.Olympiad.amgm_one
           EOF
           lake env lean Axioms.lean | tee axioms.log
           if grep -q "sorryAx\|ofReduceBool\|axiomAx" axioms.log; then
             echo "FORBIDDEN AXIOM FOUND"; grep "sorryAx\|ofReduceBool\|axiomAx" axioms.log; exit 1
           fi
-          if [ "$(grep -c 'depends on axioms' axioms.log)" -ne 16 ]; then
-            echo "expected 16 audited declarations, got $(grep -c 'depends on axioms' axioms.log)"
+          if [ "$(grep -c 'depends on axioms' axioms.log)" -ne 22 ]; then
+            echo "expected 22 audited declarations, got $(grep -c 'depends on axioms' axioms.log)"
             exit 1
           fi
           if grep -v 'propext, Classical.choice, Quot.sound' axioms.log | grep 'depends on axioms'; then
             echo "a declaration depends on something outside the allowlist"; exit 1
           fi
-          echo "OK: 16/16 declarations, axioms within {propext, Classical.choice, Quot.sound}"
+          echo "OK: 22/22 declarations, axioms within {propext, Classical.choice, Quot.sound}"

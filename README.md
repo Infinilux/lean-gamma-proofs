@@ -1,7 +1,8 @@
 # Lean 4 证明样例
 
 Toolchain `leanprover/lean4:v4.31.0`，Mathlib pinned at `fabf563a7c9` (tag `v4.31.0`)。
-CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 做 `lake build` 并审计 `sorry`。
+CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 做 `lake build` 并逐条审计 22 个声明的公理，
+在 GitHub Actions 的干净 Ubuntu runner 上跑通（约 2 分钟，走 Mathlib 预编译缓存）。
 
 这个仓库只有两个目的：证明我能写**编译通过、不依赖 `sorry`、不依赖现成结论**的 Lean 证明。
 所有结论都用 `#print axioms` 审计过，只依赖 `propext, Classical.choice, Quot.sound`。
@@ -14,6 +15,7 @@ CI: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 做 `lake build` 并�
 | 同上 | `Ordinal.veblen_lt_of_fixed` | `veblen γ 0 = γ → a < γ → b < γ → veblen a b < γ`（抽象版，任意不动点） | 5 行 |
 | 同上 | `Ordinal.veblen_lt_gamma` | 每个 `Γ_ o` 都对二元 Veblen 封闭 | 3 行 |
 | [`LeanProofs/SchroederBernstein.lean`](LeanProofs/SchroederBernstein.lean) | `LeanProofs.csb` | `Injective f → Injective g → α ≃ β` | 121 行，从零 |
+| [`LeanProofs/Olympiad.lean`](LeanProofs/Olympiad.lean) | `LeanProofs.Olympiad.nesbitt` | `a/(b+c)+b/(c+a)+c/(a+b) ≥ 3/2` | 6 条竞赛式定理，共 145 行 |
 
 ## Γ₀ 的封闭性
 
@@ -60,6 +62,20 @@ import Mathlib.Logic.Equiv.Set
 `MeasurableEmbedding.schroederBernstein` 乃至 `Cardinal.mk` 全部是 unknown identifier。
 也就是说，这个证明在类型层就够不到 mathlib 的现成 CSB 或任何基数算术路线。
 
+## 竞赛风格定理
+
+`LeanProofs/Olympiad.lean` 里六条，全部编译通过、公理干净：HM–AM 三元形式、
+Nesbitt、二维 Cauchy–Schwarz、`n⁵ ≡ n [MOD 30]`、立方和恒等式 `4·Σ i³ = (n(n+1))²`、
+`abc = 1 ⟹ a+b+c ≥ 3`。手法各不相同：SOS 恒等式（`ring` + `positivity`）、代换化归、
+`nlinarith` 找平方和、`ZMod 30` 上核内 `decide` 判定 30 个情形再拉回 `Nat.ModEq`、
+归纳、以及直接用 Mathlib 的加权 AM–GM。
+
+**定位说清楚**：这几条不是新数学，是教科书题。核实过的是它们**在 mathlib 里没有同名/同形式的
+陈述**——全库 grep `nesbitt`（不区分大小写）、`∑ i in range _, i ^ 3`、`n ^ 5 ≡` 零命中——
+但证明用的原料（`Real.geom_mean_le_arith_mean3_weighted`、`ZMod`、`Finset` 求和、
+`nlinarith`/`positivity`）全部来自 Mathlib。这一档的价值只在于"给题目就能变成编译通过的
+Lean"，别按研究结果读。
+
 ## 本地验证
 
 ```bash
@@ -90,6 +106,5 @@ lake env lean Axioms.lean
 
 ## 还没有的
 
-`LeanProofs/Olympiad.lean`（竞赛题形式化）在写，写完会追加提交。
 `Γ₀` 的可数性、`Γ₀` 作为 ATR₀ 证明论序数的那一整套（有序记号系统、单调可证偏序）
 都不在这里，mathlib 目前也没有。
